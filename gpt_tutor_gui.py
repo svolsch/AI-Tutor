@@ -52,6 +52,7 @@ class PrimarySchoolTeacherApp:
 
         tk.Button(self.root, text="Submit", command=self.submit).pack()
         tk.Button(self.root, text="Clear Input", command=self.clear_input).pack()
+        tk.Button(self.root, text="Back", command=self.go_back).pack()
         tk.Button(self.root, text="Quit", command=self.root.quit).pack()
 
         self.output_text = tk.Text(self.root, wrap=tk.WORD, height=10, width=50)
@@ -61,40 +62,42 @@ class PrimarySchoolTeacherApp:
         user_input = self.user_input.get()
         if user_input:
             prompt_choice = self.prompt_choice.get()
-
-            if prompt_choice.isdigit() and 0 <= int(prompt_choice) - 1 < len(prompt_list):
+            
+            if self.user_role == "teacher" and self.custom_prompts.get().strip():
+                # When a teacher enters a custom prompt, we use only that prompt
+                selected_prompt = self.custom_prompts.get().strip()
+            elif prompt_choice.isdigit() and 0 <= int(prompt_choice) - 1 < len(prompt_list):
                 selected_prompt = prompt_list[int(prompt_choice) - 1]
-
-                if self.user_role == "student":
-                    messages = self.messages + [
-                        {"role": "user", "content": user_input},
-                        {"role": "assistant", "content": selected_prompt}
-                    ]
-                else:
-                    custom_prompts = self.custom_prompts.get().split('\n')
-                    prompts = custom_prompts if custom_prompts else [selected_prompt]
-                    messages = self.messages + [
-                        {"role": "user", "content": user_input},
-                        {"role": "assistant", "content": selected_prompt}
-                    ] + [{"role": "assistant", "content": prompt} for prompt in prompts]
-
-                chat = ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
-                reply = chat.choices[-1].message["content"]
-                self.messages.append({"role": "user", "content": user_input})
-                self.messages.append({"role": "assistant", "content": reply})
-
-                self.output_text.insert(tk.END, "You: " + user_input + "\n")
-                self.output_text.insert(tk.END, "Assistant: " + reply + "\n")
-                self.output_text.insert(tk.END, "\n")
             else:
                 self.output_text.insert(tk.END, "Invalid prompt choice. Please select a valid option.\n")
+                return
+
+            messages = self.messages + [
+                {"role": "user", "content": user_input},
+                {"role": "assistant", "content": selected_prompt}
+            ]
+
+            chat = ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
+            reply = chat.choices[-1].message["content"]
+            self.messages.append({"role": "user", "content": user_input})
+            self.messages.append({"role": "assistant", "content": reply})
+
+            self.output_text.insert(tk.END, "You: " + user_input + "\n")
+            self.output_text.insert(tk.END, "Assistant: " + reply + "\n")
+            self.output_text.insert(tk.END, "\n")
         else:
-            self.output_text.insert(tk.END, "Please provide input before applying prompts.\n")
+            self.output_text.insert(tk.END, "Invalid prompt choice. Please select a valid option.\n")
 
     def clear_input(self):
         self.user_input.set("")
         self.output_text.delete(1.0, tk.END)
         self.output_text.insert(tk.END, "User input cleared.\n")
+    
+    def go_back(self):
+        self.root.destroy()
+        root = tk.Tk()
+        app = RoleSelectionApp(root)
+        root.mainloop()
 
 if __name__ == "__main__":
     prompt_list = [
